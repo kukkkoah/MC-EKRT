@@ -89,12 +89,14 @@ public:
         const double &kt,
         const double &sqrt_s,
         std::shared_ptr<pdf_builder> p_pdf,
-        pqcd::sigma_jet_params params) noexcept -> std::tuple<double, double>
+        pqcd::sigma_jet_params params,
+        const double &taa,
+        const double &tbb) noexcept -> std::tuple<double, double>
     {
         double max_dsigma;
         double error_est;
 
-        struct f_params fparams = {kt, sqrt_s, p_pdf, params};
+        struct f_params fparams = {kt, sqrt_s, p_pdf, params, taa, tbb};
         // Use Simplex algorithm by Nelder and Mead to find the maximum of dsigma
         const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex2;
         gsl_multimin_fminimizer *minimizer = nullptr;
@@ -129,18 +131,162 @@ public:
             }
 
             simplex_size = gsl_multimin_fminimizer_size(minimizer);
-            status = gsl_multimin_test_size(simplex_size, 1e-3);
+            status = gsl_multimin_test_size(simplex_size, -minimizer->fval * 1e-4);
 
-        } while (status == GSL_CONTINUE && iter < 100);
+        } while (status == GSL_CONTINUE && iter < 128);
 
         max_dsigma = static_cast<double>(-minimizer->fval);
         error_est = static_cast<double>(simplex_size);
+
+        //std::cout << "sigma: " << max_dsigma << ", error = " << error_est << ", iter = " << iter << ", v = " << y1 << "\t" << y2 << std::endl;
 
         gsl_vector_free(ys);
         gsl_vector_free(init_step_size);
         gsl_multimin_fminimizer_free(minimizer);
 
+
         return std::make_tuple(std::move(max_dsigma), std::move(error_est));
+    }
+
+    static auto find_max_dsigma_tata(
+        const double &kt,
+        const double &sqrt_s,
+        std::shared_ptr<pdf_builder> p_pdf,
+        pqcd::sigma_jet_params params) noexcept -> std::tuple<double, double>
+    {
+        int i = 0;
+        auto max_00 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.0, 0.0);
+        auto max_01 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.0, 0.44);
+        auto max_11 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.44, 0.44);
+        //std::cout << kt << ", sigmas: " << std::get<0>(max_00) << "\t" << std::get<0>(max_01) << "\t" << std::get<0>(max_11) << std::endl;
+        auto res = max_00;
+        if (std::get<0>(res)+fabs(std::get<1>(res)) < std::get<0>(max_01)+fabs(std::get<1>(max_01))){res = max_01; i = 1;}
+        if (std::get<0>(res)+fabs(std::get<1>(res)) < std::get<0>(max_11)+fabs(std::get<1>(max_11))){res = max_11; i = 2;}
+        //std::cout << "max at taa,tbb: " << i << std::endl;
+        return res;
+    }
+
+    static auto find_env_kts(
+        const double &p0,
+        const double &sqrt_s,
+        std::shared_ptr<pdf_builder> p_pdf,
+        pqcd::sigma_jet_params jet_params) noexcept
+    {
+        std::vector<std::vector<double>> slopes;
+        std::vector<double> slope_derivatives;
+        double kt1, kt2, dx, dy, y1, y2;
+        const int N = 100;
+        const double final_kt = sqrt_s/5.+p0;
+        if(final_kt > sqrt_s/2.){
+            std::cout << "ERROR: p0/sqrt_s TOO LARGE";
+            exit(1);
+        }
+        const double increment = std::pow(final_kt/p0, 1./N);
+        
+        // Numerically calculate the derivative of the cross section in log/log plane
+        kt2 = p0;
+        for (int i = 0; i < N; i++) {
+            kt1 = kt2;
+            kt2 = kt1*increment;
+            auto [maxds1, err1] = calcs::find_max_dsigma_tata(kt1, sqrt_s, p_pdf, jet_params);
+            auto [maxds2, err2] = calcs::find_max_dsigma_tata(kt2, sqrt_s, p_pdf, jet_params);
+            y1 = maxds1 + fabs(err1);
+            y2 = maxds2 + fabs(err2);
+            dy = log(y1) - log(y2);
+            dx = log(kt1)-log(kt2);
+            slopes.push_back({(dy)/(dx), kt1, kt2});
+            //std::cout << "dydx: " << dy/dx << ", i = " << i << std::endl;
+        }
+        // Calculate the second derivative
+        double derivative;
+        int good_amount = 0;
+        for (int i = 0; i < N-1; i++) {
+            kt1 = (slopes[i][1] + slopes[i][2]) / 2.;
+            kt2 = (slopes[i+1][1] + slopes[i+1][2]) / 2.;
+            dy = slopes[i][0] - slopes[i+1][0];
+            dx = kt1 - kt2;
+            derivative = dy/dx;
+            //std::cout << "dy2dx = " << dy/dx << std::endl;
+            if (-1 < derivative && derivative < 0){
+                slope_derivatives.push_back(derivative);
+                good_amount += 1;
+            }
+            else{
+                slope_derivatives.push_back(0.);
+            }
+        }
+        // Take the average of the second derivative
+        const double average = std::accumulate(slope_derivatives.begin(), slope_derivatives.end(), 0.)/(good_amount);
+        //std::cout << std::endl << std::endl << average << std::endl;
+        double env_norm2, env_power;
+        double logkt1, logkt2, logy1, logy2, kt_j, y, env;
+        bool broke;
+        // Pick the kt points where the second derivative goes below the average
+        for (int i = 0; i < N-1; i++){
+            if (slope_derivatives[i] > average && slope_derivatives[i] < 0) {
+                broke = false;
+                kt1 = slopes[i][1];
+                kt2 = slopes[i][2];
+                //std::cout << "final stage: kt1 = " << kt1 << ", kt2 = " << kt2 << std::endl;
+                auto [max_dsigma1, err1] = calcs::find_max_dsigma_tata(kt1, sqrt_s, p_pdf, jet_params);
+                auto [max_dsigma2, err2] = calcs::find_max_dsigma_tata(kt2, sqrt_s, p_pdf, jet_params);
+                logkt1 = std::log(kt1);
+                logkt2 = std::log(kt2);
+                logy1 = std::log(max_dsigma1 + fabs(err1));
+                logy2 = std::log(max_dsigma2 + fabs(err2));
+                env_norm2 = std::exp(-(logkt2 * logy1 - logkt1 * logy2) / (logkt1 - logkt2));
+                env_power = (logy1 - logy2) / (logkt1 - logkt2);
+                //If this now engulfs the cross section, go for it
+                for (int j = 0; j < N; j++){
+                    kt_j = std::pow(increment, j);
+                    //std::cout << "test: ktj = " << kt_j << std::endl;
+                    auto [max_sigma, sigmaerr] = calcs::find_max_dsigma_tata(kt_j, sqrt_s, p_pdf, jet_params);
+                    y = max_sigma + fabs(sigmaerr);
+                    env = env_norm2*std::pow(kt_j, env_power);
+                    //std::cout << "kts: " << kt1 << "\t" << kt2 << "\t" << kt_j << ", sigma = " << y << ", env = " << env << std::endl;
+                    if (y > env + 1e-7) {
+                        //std::cout << "Broke at: " << kt1 << "\t" << kt2 << "\t" << kt_j << ", sigma = " << y << "\t" << env << std::endl;
+                        broke = true;
+                        break;
+                    }
+                }
+                if (broke == false) {
+                    //std::cout << "OMG " << kt1 << "\t" << kt2 <<std::endl;
+                    return std::make_tuple(kt1, kt2);
+                }
+            }
+        }
+        std::cout << "ERROR: Erratic cross section behaviour";
+        return std::make_tuple(2./jet_params.scalar, 3./jet_params.scalar);
+    }
+    
+    static auto find_env_small_kt(
+        const double &p0,
+        const double &sqrt_s,
+        std::shared_ptr<pdf_builder> p_pdf,
+        pqcd::sigma_jet_params jet_params) noexcept -> double
+    {
+        int N = 200;
+        double max_kt = p0 * (1.5/jet_params.scalar);
+        double increment = (max_kt - p0) / N;
+        double res, ktdsigma;
+        double kt = p0;
+        double res_ktdsigma = 0;
+        for (int i = 0; i < N; i++)
+        {
+            auto [max_dsigma, err] = calcs::find_max_dsigma_tata(kt, sqrt_s, p_pdf, jet_params);
+            ktdsigma = kt * (max_dsigma + fabs(err));
+            if (ktdsigma > res_ktdsigma)
+            {
+                res_ktdsigma = ktdsigma;
+                res = kt;
+                //std::cout << "max found at kt = " << kt << ", sigma = " << max_dsigma << ", ktdsigma = " << ktdsigma << std::endl;
+            }
+            //std::cout << "kt = " << kt << ", sigma = " << max_dsigma << ", ktdsigma = " << ktdsigma << std::endl;
+
+            kt = kt + increment;
+        }
+        return res;
     }
 
     /**
@@ -167,6 +313,7 @@ public:
         // How tight we want the envelope to be, lower values == faster but more prone to error
         double extra = envelope_marginal;
 
+        double scale = jet_params.scalar;
         double env_min_kt = p0;
         double env_norm1 = 0;
         double env_norm2 = 0;
@@ -178,22 +325,23 @@ public:
         std::function<double(const double &)> env_prim;
         std::function<double(const double &)> env_prim_inv;
 
-        if (p0 < 2.0)
+        if (p0 < 2.0/scale)
         {
             // Calculate the normalization for the ~1/kt part
-            double dummy_p0 = 1.0;
-            auto [max_dsigma, err] = calcs::find_max_dsigma(dummy_p0, sqrt_s, p_pdf, jet_params);
-            env_norm1 = (max_dsigma + fabs(err)) * extra;
+            double dummy_p0 = calcs::find_env_small_kt(env_min_kt, sqrt_s, p_pdf, jet_params);
+            auto [max_dsigma, err] = calcs::find_max_dsigma_tata(dummy_p0, sqrt_s, p_pdf, jet_params);
+            env_norm1 = dummy_p0 * (max_dsigma + fabs(err)) * extra;
 
             // Calculate parameters for the a*kt^b part
-            double kt1 = 2.0;
-            double kt2 = 3.0;
-            auto [max_dsigma1, err1] = calcs::find_max_dsigma(kt1, sqrt_s, p_pdf, jet_params);
-            auto [max_dsigma2, err2] = calcs::find_max_dsigma(kt2, sqrt_s, p_pdf, jet_params);
+            auto [kt1, kt2] = calcs::find_env_kts(1.0, sqrt_s, p_pdf, jet_params);
+            // double kt1 = 2.95/scale;
+            // double kt2 = 3./scale;
+            auto [max_dsigma1, err1] = calcs::find_max_dsigma_tata(kt1, sqrt_s, p_pdf, jet_params);
+            auto [max_dsigma2, err2] = calcs::find_max_dsigma_tata(kt2, sqrt_s, p_pdf, jet_params);
             double logkt1 = std::log(kt1);
             double logkt2 = std::log(kt2);
-            double logy1 = std::log((max_dsigma1 + fabs(err1)) * extra);
-            double logy2 = std::log((max_dsigma2 + fabs(err2)) * extra);
+            double logy1 = std::log((max_dsigma1 + fabs(err1)) * std::pow(extra, 1./3.));
+            double logy2 = std::log((max_dsigma2 + fabs(err2)) * std::pow(extra, 1./3.));
             env_norm2 = std::exp(-(logkt2 * logy1 - logkt1 * logy2) / (logkt1 - logkt2));
             env_power = (logy1 - logy2) / (logkt1 - logkt2);
 
@@ -248,10 +396,9 @@ public:
         else // If p0>2.0, we don't need the ~1/kt part
         {
             // Calculate parameters for the a*kt^b part
-            double kt1 = env_min_kt;
-            double kt2 = env_min_kt + 1.0;
-            auto [max_dsigma1, err1] = calcs::find_max_dsigma(kt1, sqrt_s, p_pdf, jet_params);
-            auto [max_dsigma2, err2] = calcs::find_max_dsigma(kt2, sqrt_s, p_pdf, jet_params);
+            auto [kt1, kt2] = calcs::find_env_kts(env_min_kt, sqrt_s, p_pdf, jet_params);
+            auto [max_dsigma1, err1] = calcs::find_max_dsigma_tata(kt1, sqrt_s, p_pdf, jet_params);
+            auto [max_dsigma2, err2] = calcs::find_max_dsigma_tata(kt2, sqrt_s, p_pdf, jet_params);
             double logkt1 = std::log(kt1);
             double logkt2 = std::log(kt2);
             double logy1 = std::log((max_dsigma1 + fabs(err1)) * extra);
@@ -279,7 +426,8 @@ public:
                 return std::pow((c + s) * (1 + b) / a, 1.0 / (1 + b));
             };
         }
-
+        //std::cout << "Envelope params: " << env_min_kt << "\t" << env_norm1 << "\t" << env_norm2 << "\t" << env_power << "\t" << env_switch_kt << std::endl;
+        //exit(1);
         return envelope_func{
             env_min_kt,
             env_norm1,
@@ -302,6 +450,8 @@ public:
         const double &sqrt_s;
         std::shared_ptr<pdf_builder> p_pdf;
         pqcd::sigma_jet_params sigma_params;
+        const double &taa;
+        const double &tbb;
     };
 
     /*
@@ -316,13 +466,15 @@ public:
         auto sqrt_s = fparams->sqrt_s;
         auto p_pdf = fparams->p_pdf;
         auto sigma_params = fparams->sigma_params;
+        auto taa = fparams->taa;
+        auto tbb = fparams->tbb;
         double y1, y2;
         y1 = gsl_vector_get(v, 0);
         y2 = gsl_vector_get(v, 1);
 
         auto dummy = pqcd::nn_coll_params(
-            0.0,
-            0.0,
+            taa,
+            tbb,
             false,
             false);
 

@@ -87,6 +87,7 @@ public:
     std::string name{"example_name"};                       // name of the run, affects output filenames and such
     std::string sigmajet_filename{"sigma_jet.dat"};         // filename for the spatially dependent sigma_jet grid
     std::string centrality_filename{"centrality_bins.csv"}; // filename for the centrality bins for the reporting
+    std::string K_factor_filename{"K_factors.csv"};         // filename for where to find the K-factors if used
     uint_fast32_t desired_N_events{2000};                   // how many events should be simulated
     uint_fast16_t A{208};                                   // mass number of the colliding nucleus
     uint_fast16_t B{208};                                   // mass number of the colliding nucleus
@@ -94,7 +95,8 @@ public:
     uint_fast16_t ZB{82};                                   // atomic number of the colliding nucleus
     double b_max{20.0};                                     // (fm) maximum of the impact parameter
     double b_min{0.0};                                      // (fm) minimum of the impact parameter
-    double K_factor{2.0};                                   // pQCD K-factor to account for the higher order corrections
+    double K_factor{0.0};                                   // pQCD K-factor to account for the higher order corrections
+    double PDF_scale{1.0};
     double p0{1.0};                                         // (GeV) jet p_T lower cutoff
     double p02{1.0};                                        // (GeV^2) p_T lower cutoff squared
     double Kappa_factor{2.0};                               // saturation criterion for jets i, j: d_ij < (1/p_Ti + 1/p_Tj)/M_sat

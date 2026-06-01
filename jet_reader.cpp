@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <cstdint>
 
 struct dijet
 {
@@ -54,7 +55,7 @@ struct dijet
 
 int main()
 {
-    std::string filename = "jets_0_5_example_name.dat";
+    std::string filename = "jets_0_10_example_name.dat";
     std::ifstream jet_file(filename, std::ios::in | std::ios::binary);
 
     if (!jet_file.is_open())
@@ -80,11 +81,10 @@ int main()
 
     jet_file.read(reinterpret_cast<char *>(&n_events), sizeof n_events);
     std::cout << "Trying to read " << n_events << " events from the file "
-              << filename << " ..." << std::endl;
+              << filename << " ..." << sizeof n_events << std::endl;
     events_jets.reserve(n_events);
 
     uint_fast16_t n_bins = 50;
-
     uint_fast64_t n_dijet_total = 0;
     for (uint_fast64_t i = 0; i < n_events; i++)
     {

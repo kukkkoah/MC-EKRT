@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../libParts.a CMakeFiles/Parts.dir/ars.cpp.o CMakeFiles/Parts.dir/hcubature.cpp.o CMakeFiles/Parts.dir/histo.cpp.o CMakeFiles/Parts.dir/linear_interpolator.cpp.o CMakeFiles/Parts.dir/log_interpolator.cpp.o CMakeFiles/Parts.dir/mcaa.cpp.o CMakeFiles/Parts.dir/nn_coll.cpp.o CMakeFiles/Parts.dir/nucleus_generator.cpp.o CMakeFiles/Parts.dir/pqcd.cpp.o CMakeFiles/Parts.dir/EPPS16.cpp.o CMakeFiles/Parts.dir/eps09.cxx.o
+/usr/bin/ranlib ../libParts.a

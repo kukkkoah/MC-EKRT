@@ -27,7 +27,7 @@
 
 mcaa::mcaa(
     const std::string &initfile)
-    : jet_params(pqcd::scaled_from_kt, 1, 1.0, false),
+    : jet_params(pqcd::scaled_from_kt, 1.0, pqcd::K_factors(), false),
       nuc_params(1u, 1u, 1u, 1u, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, false, false, false, 1u, 1.0)
 {
     auto
@@ -35,11 +35,13 @@ mcaa::mcaa(
          p_sjet_name,
          p_read_sigmajets_from_file,
          p_cent_name,
+         p_K_name,
          p_n_events,
          p_b_max,
          p_b_min,
          p_sqrt_s,
          p_K_factor,
+         p_scale,
          p_Kappa_factor,
          p_p0,
          p_proton_width_static,
@@ -94,6 +96,7 @@ mcaa::mcaa(
     this->name = p_name;
     this->sigmajet_filename = p_sjet_name;
     this->centrality_filename = p_cent_name;
+    this->K_factor_filename = p_K_name;
     this->desired_N_events = p_n_events;
     this->A = p_A;
     this->B = p_B;
@@ -102,6 +105,7 @@ mcaa::mcaa(
     this->b_max = p_b_max;
     this->b_min = p_b_min;
     this->K_factor = p_K_factor;
+    this->PDF_scale = p_scale;
     this->Kappa_factor = p_Kappa_factor;
     this->p0 = p_p0;
     this->nn_min_dist = p_nn_min_dist;
@@ -205,8 +209,8 @@ mcaa::mcaa(
 
     this->jet_params = pqcd::sigma_jet_params(
         /*scale_choice=             */ pqcd::scaled_from_kt,
-        /*scalar=                   */ 1.0,
-        /*K_factor=                 */ this->K_factor,
+        /*scalar=                   */ this->PDF_scale,
+        /*K_factor=                 */ pqcd::K_factors(this->K_factor, this->K_factor_filename, this->sqrt_s, this->PDF_scale),
         /*use_ses=                  */ false);
 
     double hotspot_distr_width = std::sqrt(this->proton_width_2 - std::pow(p_hotspot_width, 2));
@@ -282,13 +286,13 @@ auto mcaa::fit_sigma_jet_pt0_cutoff(
     return pt02;
 }
 
-auto mcaa::find_sigma_jet_cutoff_Q(
+auto mcaa::find_sigma_jet_cutoff_Q( // NOT USED
     const double &pt02,
     const double &target,
     const bool &verbose) noexcept -> double
 {
     double sigma_jet = 0.0;
-    double scalar = 1.0;
+    double scalar = this->PDF_scale;
 
     auto difference_to_target = [&](const double &scalar_)
     {
@@ -296,7 +300,7 @@ auto mcaa::find_sigma_jet_cutoff_Q(
         auto jet_params_ = pqcd::sigma_jet_params(
             /*scale_choice=             */ this->jet_params.scale_c,
             /*scalar=                   */ scalar_,
-            /*K_factor=                 */ this->K_factor,
+            /*K_factor=                 */ pqcd::K_factors(this->K_factor, this->K_factor_filename, this->sqrt_s, scalar_),
             /*use_ses=                  */ this->jet_params.use_ses);
         auto p02_ = this->fit_sigma_jet_pt0_cutoff(p02dummy, target, jet_params_, verbose);
         return p02_ - pt02;
@@ -814,7 +818,7 @@ auto mcaa::filter_end_state(
             filtered_scatterings.push_back({cand.dijet, coords{cand_x, cand_y, cand_z}, tata, cand.pro_nucleon, cand.tar_nucleon});
         }
     }
-
+    
     binary_collisions.clear();
 }
 
@@ -842,7 +846,7 @@ auto mcaa::run() -> void
     uint_fast32_t AA_events_done = 0;
     std::mutex AA_events_mutex;
 
-    // auto eng = std::make_shared<std::mt19937>(static_cast<ulong>(1));
+    //auto eng_shared = std::make_shared<std::mt19937>(static_cast<ulong>(1));
     auto eng_shared = std::make_shared<std::mt19937>(static_cast<ulong>(std::chrono::system_clock::now().time_since_epoch().count()));
     std::uniform_real_distribution<double> unirand{0.0, 1.0};
 
@@ -928,6 +932,54 @@ auto mcaa::run() -> void
                 this->jet_params,
                 this->sigmajet_filename,
                 this->snPDFs);
+
+    // std::ofstream dsigma_p0;
+    // double p_ = 2.;
+    // double y1max = std::acosh(this->sqrt_s/2./p_);
+    // double y2max = std::log(this->sqrt_s/p_ - std::exp(-y1max));
+    // dsigma_p0.open("dsigma_p0_LO_p2.csv");
+    // int N = 32;
+    // std::vector<double> y1s(N, 0);
+    // std::vector<double> y2s(N, 0);
+
+    // for (int i = 0; i < N; i++){
+    //     y1s[i] = -y1max + i/double(N-1)*2*y1max;
+    //     y2s[i] = -y2max + i/double(N-1)*2*y2max;
+    //     dsigma_p0 << y1s[i] << ",";
+    // }
+    // dsigma_p0 << std::endl;
+    // for (int i = 0; i < N; i++){
+    //     dsigma_p0 << y2s[i] << ",";
+    // }
+    // dsigma_p0 << std::endl;
+
+    // auto dummy = pqcd::nn_coll_params(
+    //         0,
+    //         0,
+    //         false,
+    //         false);
+
+    // for (int i = 0; i < N; i++){
+    //     for (int j = 0; j < N; j++){
+    //         if (y2s[j] < -std::log(this->sqrt_s/p_ - std::exp(-y1s[i])) || y2s[j] > std::log(this->sqrt_s/p_ - std::exp(y1s[i]))){
+    //             dsigma_p0 << 0 << ",";
+    //         }
+    //         else{
+    //             auto xsection = pqcd::diff_cross_section_2jet(this->sqrt_s, p_, y1s[i], y2s[j], this->pdf, this->jet_params, dummy, true, false);
+    //             double total_xsection = 0;
+    //             for (auto xsect : xsection)
+    //             {
+    //                 total_xsection += xsect.sigma;
+    //             }
+    //             dsigma_p0 << total_xsection << ",";
+    //         }
+    //     }
+    //     dsigma_p0 << std::endl;
+    // }
+    
+    // std::cout << std::get<0>(calcs::find_max_dsigma(p_, this->sqrt_s, this->pdf, this->jet_params, 0.44, 0.44));
+
+    // exit(1);
 
     if (this->sigma_inel_from_sigma_jet && !this->snPDFs)
     {
@@ -1289,6 +1341,22 @@ auto mcaa::run() -> void
                             const std::lock_guard<std::mutex> lock(total_energy_mutex); /////
                             total_energy << sum_ET << ' ' << sum_E << std::endl;        /////
                         } /////
+                    }
+                    else
+                    {
+                        std::normal_distribution<double> normal_dist(0, 0);
+                        double tata;
+                        for (auto &col : binary_collisions)
+                        {
+                            for (auto &dij : col.dijets)
+                            {
+                                dijet_with_ns cand(dij, col.projectile, col.target, this->pt_ordering, this->t03_ordering);
+                                auto [cand_x, cand_y, cand_z] = this->throw_location_for_dijet(cand, normal_dist, eng);
+                                tata = this->Tpp->calculate_TA(cand_x, cand_y, pro) * this->Tpp->calculate_TA(cand_x, cand_y, tar);
+                                filtered_scatterings.push_back({std::move(dij), coords{cand_x, cand_y, cand_z}, tata, col.projectile, col.target});
+                            }
+                        }
+                        binary_collisions.clear();
                     }
 
                     {

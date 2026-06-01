@@ -16,10 +16,12 @@ add_library(
 	hcubature.cpp
 	histo.cpp
 	linear_interpolator.cpp
+	log_interpolator.cpp
 	mcaa.cpp
 	nn_coll.cpp
 	nucleus_generator.cpp
 	pqcd.cpp
+	EPPS16.cpp
 	eps09.cxx
 )
 
@@ -49,6 +51,7 @@ target_compile_options(Parts PUBLIC
 	#-fsanitize=undefined
 	#-fsanitize=address
 	-O2
+	-g
 )
 
 find_package(Boost REQUIRED)

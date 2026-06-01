@@ -9,10 +9,121 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "pqcd.hpp"
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846 /* pi */
 #endif
+
+auto pqcd::K_factors::get_K_factor(
+    const double &kt,
+    const double &y1,
+    const double &y2) const noexcept -> double
+{
+    if (using_constant_K)
+    {
+        return constant_K_factor;
+    }
+    else return K_interpolator.value_at(kt, 1);
+}
+
+pqcd::K_factors::K_factors(const double &constant_K_factor_, const std::string &filename, const double &sqrts, const double &scale) noexcept
+{
+    if (almostEqual(constant_K_factor_, 0))
+    {
+        constant_K_factor = 1.0;
+        using_constant_K = false;
+        K_interpolator = get_K_factor_table(filename, sqrts, scale);
+    }
+    else
+    {
+        K_interpolator = log_interpolator();
+        constant_K_factor = constant_K_factor_;
+        using_constant_K = true;
+    }
+}
+
+pqcd::K_factors::K_factors(const double &constant_K_factor_) noexcept
+{
+    K_interpolator = log_interpolator();
+    constant_K_factor = constant_K_factor_;
+    using_constant_K = true;
+}
+
+auto pqcd::K_factors::get_K_factor_table(const std::string &filename, const double &sqrts, const double &scale) noexcept -> log_interpolator
+{
+    //read the file
+    std::vector<std::vector<std::string>> data;
+    std::ifstream file(filename);
+    
+    if (!file.is_open()) {
+        std::cout << "ERROR: Failed to open file: " << filename << ", using K = 2.0 instead" << std::endl;
+        using_constant_K = true;
+        constant_K_factor = 2.0;
+        return log_interpolator();
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::vector<std::string> row;
+        std::stringstream ss(line);
+        std::string cell;
+
+        while (std::getline(ss, cell, ',')) {
+            row.push_back(cell);
+        }
+
+        data.push_back(row);
+    }
+    file.close();
+
+    // find the correct sqrt s, mu table
+    int s_read;
+    double scale_read;
+    int start_index = 0;
+
+
+    for (int i = 0; i < data.size(); i++) {
+        if (data[i][0][0] == 's'){
+            s_read = std::stod(std::string(data[i][0].begin()+std::string("sqrts=").size(), data[i][0].end()));
+            if (almostEqual(s_read, sqrts)){
+                scale_read = std::stod(std::string(data[i][1].begin()+std::string("mu=").size(), data[i][1].end()));
+                if (almostEqual(scale_read, scale)){
+                    start_index = i+1;
+                    break;
+                }
+            }
+        }
+        if (i == data.size() - 1){
+            std::cout << "ERROR: No K-factors calculated for this sqrt(s) and scale combination, using K = 2.0 instead" << std::endl;
+            using_constant_K = true;
+            constant_K_factor = 2.0;
+            return log_interpolator();
+        }
+    }
+    
+    int length = 0;
+    for (int i = start_index; i < data.size(); i++)
+    {
+        if (data[i][0][0] == 's'){
+            break;
+        }
+        length += 1;
+    }
+    
+    //make the interpolator
+    std::vector<double> xs = {};
+    std::vector<double> ys = {};
+    for (size_t i = start_index; i < start_index + length; i++)
+    {
+        xs.push_back(std::stod(data[i][0]));
+        ys.push_back(std::stod(data[i][1]));
+        //std::cout << data[i][0] << "\t" << data[i][1] << "\n";
+    }
+    return log_interpolator(xs,ys);
+}
 
 auto pqcd::diff_sigma::full_partonic_bookkeeping(
     const std::array<double, 7> &f_i_x1,
@@ -187,7 +298,7 @@ auto pqcd::generate_2_to_2_scatt(
         }
 
         ratio = total_xsection / env_func.func(kt);
-
+        //std::cout << ratio << "\t" << kt << std::endl;
         if (ratio > 1)
         {
             std::cout << std::endl
@@ -537,7 +648,7 @@ auto pqcd::diff_cross_section_2jet(
 
     // Units for dsigma/dktdy1dy2 as [mb/GeV]
     const double alpha_s = pdf->alphasQ2(q2);
-    const double units = sigma_params.K_factor * 2.0 * kt * (M_PI * alpha_s * alpha_s / (s_hat * s_hat)) * 10 / pow(FMGEV, 2);
+    const double units = sigma_params.K_factor.get_K_factor(kt, y1, y2) * 2.0 * kt * (M_PI * alpha_s * alpha_s / (s_hat * s_hat)) * 10 / pow(FMGEV, 2);
 
     // Returns zero when outside the physical boundaries
     if ((x1 < 0) || (x1 > 1) || (x2 > 1) || (x2 < 0))
@@ -933,7 +1044,7 @@ auto pqcd::sigma_jet(
     return K_factor * (M_PI * alpha_s * alpha_s / (s_hat * s_hat)) * d_sigma;
 }
 
-auto pqcd::sigma_1jet_integrand_binned(
+auto pqcd::sigma_1jet_integrand_binned( // Function not used so K-factor not properly implemented
     unsigned ndim,
     const double *p_x,
     void *p_fdata,
@@ -1000,12 +1111,14 @@ auto pqcd::sigma_1jet_integrand_binned(
     const auto t_hat = pqcd::t_hat_from_ys(y1, y2, kt2);
     const auto u_hat = pqcd::u_hat_from_ys(y1, y2, kt2);
 
-    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, params.K_factor, nn_params, false) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
+    const auto K_factor = 2.0;
+
+    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, K_factor, nn_params, false) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
 
     return 0; // success
 }
 
-auto pqcd::sigma_jet_integrand_binned(
+auto pqcd::sigma_jet_integrand_binned( // Function not used so K-factor not properly implemented
     unsigned ndim,
     const double *p_x,
     void *p_fdata,
@@ -1072,12 +1185,14 @@ auto pqcd::sigma_jet_integrand_binned(
     const auto t_hat = pqcd::t_hat_from_ys(y1, y2, kt2);
     const auto u_hat = pqcd::u_hat_from_ys(y1, y2, kt2);
 
-    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, params.K_factor, nn_params, false) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
+    const auto K_factor = 2.0;
+
+    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, K_factor, nn_params, false) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
 
     return 0; // success
 }
 
-auto pqcd::sigma_dijet_integrand_binned(
+auto pqcd::sigma_dijet_integrand_binned( // Function not used so K-factor not properly implemented
     unsigned ndim,
     const double *p_x,
     void *p_fdata,
@@ -1137,7 +1252,9 @@ auto pqcd::sigma_dijet_integrand_binned(
     const auto t_hat = -kt2 * (1 + exp(-2.0 * ystar));
     const auto u_hat = -kt2 * (1 + exp(2.0 * ystar));
 
-    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, params.K_factor, nn_params, false) * 2.0 * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
+    const auto K_factor = 2.0;
+
+    p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, K_factor, nn_params, false) * 2.0 * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
 
     return 0; // success
 }
@@ -1192,6 +1309,8 @@ auto pqcd::sigma_jet_integrand(
     const auto t_hat = pqcd::t_hat_from_ys(y1, y2, kt2);
     const auto u_hat = pqcd::u_hat_from_ys(y1, y2, kt2);
 
+    const auto K_factor = params.K_factor.get_K_factor(sqrt(kt2), y1, y2);
+
     // SES
     if (params.use_ses)
     {
@@ -1202,7 +1321,7 @@ auto pqcd::sigma_jet_integrand(
     }
     else // FULL SUMMATION
     {
-        p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, params.K_factor, nn_params, average) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
+        p_fval[0] = pqcd::sigma_jet(x1, x2, fac_scale, p_pdf, s_hat, t_hat, u_hat, K_factor, nn_params, average) * jacobian * 10 / pow(FMGEV, 2); // UNITS: mb
     }
 
     return 0; // success

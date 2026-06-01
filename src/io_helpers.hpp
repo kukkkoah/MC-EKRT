@@ -1155,11 +1155,13 @@ public:
         sigmajet_filename,
         read_sigmajets_from_file,
         centrality_filename,
+        K_factor_filename,
         n_events,
         b_max,
         b_min,
         sqrt_s,
         K_factor,
+        PDF_scale,
         Kappa_factor,
         p0,
         proton_width_static,
@@ -1208,11 +1210,13 @@ public:
             {"sigmajet_filename", sigmajet_filename},
             {"read_sigmajets_from_file", read_sigmajets_from_file},
             {"centrality_filename", centrality_filename},
+            {"K_factor_filename", K_factor_filename},
             {"n_events", n_events},
             {"b_max", b_max},
             {"b_min", b_min},
             {"sqrt_s", sqrt_s},
             {"K_factor", K_factor},
+            {"PDF_scale", PDF_scale},
             {"Kappa_factor", Kappa_factor},
             {"p0", p0},
             {"proton_width_static", proton_width_static},
@@ -1254,11 +1258,13 @@ public:
         std::string sigmajet_filename{"example_sigma_jet.dat"};
         bool read_sigmajets_from_file{false};
         std::string centrality_filename{"centrality_bins.csv"};
+        std::string K_factor_filename{"K_factors.csv"};
         uint_fast32_t n_events{2000};
         double b_max{20.0};
         double b_min{0.0};
         double sqrt_s{5020.0};
         double K_factor{2.0};
+        double PDF_scale{1.0};
         double Kappa_factor{2.0};
         double p0{1.0};
         bool proton_width_static{false};
@@ -1338,6 +1344,9 @@ public:
                 case io::Param::centrality_filename:
                     line_stream >> centrality_filename;
                     break;
+                case io::Param::K_factor_filename:
+                    line_stream >> K_factor_filename;
+                    break;
                 case io::Param::n_events:
                     line_stream >> n_events;
                     break;
@@ -1352,6 +1361,9 @@ public:
                     break;
                 case io::Param::K_factor:
                     line_stream >> K_factor;
+                    break;
+                case io::Param::PDF_scale:
+                    line_stream >> PDF_scale;
                     break;
                 case io::Param::Kappa_factor:
                     line_stream >> Kappa_factor;
@@ -1483,11 +1495,13 @@ public:
             sigmajet_filename,
             read_sigmajets_from_file,
             centrality_filename,
+            K_factor_filename,
             n_events,
             b_max,
             b_min,
             sqrt_s,
             K_factor,
+            PDF_scale,
             Kappa_factor,
             p0,
             proton_width_static,

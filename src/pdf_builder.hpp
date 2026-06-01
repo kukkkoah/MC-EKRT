@@ -137,13 +137,13 @@ public:
                 nuc_params,
                 1e-5,
                 verbose);
-            std::cout << "Done! {c,R} pairs:" << std::endl;
+            std::cout << "Done! {c,R} pairs:" << std::endl << "[";
 
             for (uint_fast8_t i = 0; i < 100; i++)
             {
-                std::cout << "{" << c_A_table[i] << "," << R_A_table[i] << "},";
+                std::cout << "[" << c_A_table[i] << "," << R_A_table[i] << "],";
             }
-            std::cout << "{" << c_A_table[100] << "," << R_A_table[100] << "}}" << std::endl;
+            std::cout << "[" << c_A_table[100] << "," << R_A_table[100] << "]]" << std::endl;
 
             for (uint_fast8_t i = 0; i < 101; i++)
             {

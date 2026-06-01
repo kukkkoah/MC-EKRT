@@ -47,6 +47,7 @@ target_compile_options(mcaa PUBLIC
 	#-fsanitize=undefined
 	#-fsanitize=address
 	-O2
+	-g
 )
 
 target_include_directories(mcaa PUBLIC 

@@ -20,6 +20,7 @@
 
 #include "cubature.h"
 #include "linear_interpolator.hpp"
+#include "log_interpolator.hpp"
 #include "nn_coll.hpp"
 #include "pdf_builder.hpp"
 #include "typedefs.hpp"
@@ -97,6 +98,35 @@ public:
         const double &u) noexcept -> double;
   };
 
+  class K_factors{
+  public:
+    K_factors(const double &constant_K_factor_, const std::string &filename, const double &sqrts, const double &scale) noexcept;
+    K_factors(const double &constant_K_factor_) noexcept;
+    K_factors(){};
+
+    auto get_K_factor(
+        const double &kt,
+        const double &y1,
+        const double &y2) const noexcept -> double;
+
+    operator double() const { return constant_K_factor; }
+
+    K_factors &operator=(const K_factors &rhs)
+    {
+        this->K_interpolator = rhs.K_interpolator;
+        this->constant_K_factor = rhs.constant_K_factor;
+        this->using_constant_K = rhs.using_constant_K;
+        return *this;
+    }
+
+  protected:
+  private:
+    log_interpolator K_interpolator;
+    double constant_K_factor;
+    bool using_constant_K;
+    auto get_K_factor_table(const std::string &filename, const double &sqrts, const double &scale) noexcept -> log_interpolator;
+  };
+
   enum scale_choice
   {
     scaled_from_kt,
@@ -147,13 +177,13 @@ public:
   {
     scale_choice scale_c;
     double scalar;
-    double K_factor;
+    K_factors K_factor;
     bool use_ses;
 
     explicit sigma_jet_params(
         scale_choice scale_c_ = scaled_from_kt,
         double scalar_ = 1.0,
-        double K_factor_ = 1.0,
+        K_factors K_factor_ = K_factors(1.0),
         bool use_ses_ = false) noexcept
         : scale_c(scale_c_),
           scalar(scalar_),

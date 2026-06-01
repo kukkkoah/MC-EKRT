@@ -346,7 +346,7 @@ public:
 
         std::array<double, table_size> c_vector;
         c_vector.fill(0.0);
-        auto loglin = helpers::loglinspace(1e-3, 150.0, table_size / 2);
+        auto loglin = helpers::loglinspace(1e-3, 150000.0, table_size / 2);
         for (uint_fast8_t i = 0, j = table_size / 2 - 1; i < table_size / 2; i++, j--)
         {
             c_vector[i] = -loglin[j];
