@@ -237,7 +237,7 @@ mcaa::mcaa(
         /*hotspot_distr_width=      */ hotspot_distr_width);
 
     this->pdf = std::make_shared<pdf_builder>(
-        /*p_pdf_name,p_pdf_setnumber= */ "CT14lo", 0,
+        /*p_pdf_name,p_pdf_setnumber= */ "CT14nlo", 0,
         /*n_pdf_name,n_pdf_setnumber= */ "", 0,
         /*snpdf_spatial_cutoff=       */ 0.0,
         /*snpdf_tAA_0=                */ 0.0,

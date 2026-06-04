@@ -38,6 +38,7 @@
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #include "eps09.h"
+#include "EPPS16.h"
 #include "LHAPDF/GridPDF.h"
 #pragma GCC diagnostic pop
 
@@ -265,7 +266,7 @@ public:
 
         if (this->projectile_with_npdfs)
         {
-            eps09(1, this->npdf_setnumber, static_cast<int>(this->A), x1, sqrt(q2), ruv, rdv, rus, rds, rs, rc, rb, rg);
+            EPPS16(1, this->npdf_setnumber, static_cast<int>(this->A), x1, sqrt(q2), ruv, rdv, rus, rds, rs, rc, rb, rg);
             rd = rdv + (rds - rdv) * xfx[5] / xfx[7];
             ru = ruv + (rus - ruv) * xfx[4] / xfx[8];
 
@@ -318,7 +319,7 @@ public:
 
         if (this->target_with_npdfs)
         {
-            eps09(1, this->npdf_setnumber, static_cast<int>(this->B), x2, sqrt(q2), ruv, rdv, rus, rds, rs, rc, rb, rg);
+            EPPS16(1, this->npdf_setnumber, static_cast<int>(this->B), x2, sqrt(q2), ruv, rdv, rus, rds, rs, rc, rb, rg);
             rd = rdv + (rds - rdv) * xfx[5] / xfx[7];
             ru = ruv + (rus - ruv) * xfx[4] / xfx[8];
 

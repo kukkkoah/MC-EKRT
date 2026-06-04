@@ -1,33 +1,33 @@
 # Example of a parameter initialization file. Not all of the parameters need to be explicitly stated,
 # these are the default values
 # GENERAL PARAMETERS
-name LO_sqrts5020_K2_k2_Q1_nofilter_270526                       # Name of the run, affects output filenames and such
+name NLO_sqrts200_Knlo_k2_Q1_040626_AuAu                       # Name of the run, affects output filenames and such
 sigmajet_filename example_sigma_jet.dat # Filename for the spatially dependent sigma_jet grid
 read_sigmajets_from_file false          # If the sigma_jets are precalculated
 centrality_filename centrality_bins.csv # Filename for the centrality bins for the reporting
-K_factor_filename pp200.csv             # Filename for the K-factors, if precalculated
-n_events 4000                           # How many events should be simulated
+K_factor_filename K_factors.csv         # Filename for the K-factors, if precalculated
+n_events 10000                           # How many events should be simulated
 b_max 20.0                              # (fm) maximum of the impact parameter
 b_min 0.0                               # (fm) minimum of the impact parameter
-sqrt_s 5020.0                           # (GeV) sqrt(s) for the hard process
+sqrt_s 200.0                           # (GeV) sqrt(s) for the hard process
 # QCD PARAMETERS         
-K_factor 2.0                            # pQCD K-factor to account for the higher order corrections, set to 0 to use non-constant factors
+K_factor 0.0                            # pQCD K-factor to account for the higher order corrections, set to 0 to use non-constant factors
 PDF_scale 1.0                           # Factorization and renormalization scale (multiplied with pT) used in calculating the PDFs and coupling constant
 Kappa_factor 2.0                        # Saturation criterion for jets i, j: d_ij < (1/p_Ti + 1/p_Tj)/kappa_sat
 p0 1.0                                  # (GeV) jet k_T lower cutoff
 proton_width_static false               # If the proton width should be a static value or depend on sqrt(s)
 proton_width 0.573                      # (fm) proton width (Only used if proton_width_static==true)
 sigma_inel_trigger 0                    # (mb) inelastic cross section for the AA triggering. 0 = calculate at the start.
-envelope_marginal 1.00                  # How tight we want the envelope of dsigma to be, lower values == faster but more prone to error
+envelope_marginal 1.01                  # How tight we want the envelope of dsigma to be, lower values == faster but more prone to error
 # NUCLEAR PARAMETERS
-A 208                                   # Mass number of the projectile nucleus
-B 208                                   # Mass number of the target nucleus
-ZA 82                                   # Atomic number of the projectile nucleus
-ZB 82                                   # Atomic number of the target nucleus
-nuclear_RA 6.62435                      # (fm) nucleus R0 for the 2pF-distribution of the projectile
-nuclear_RB 6.62435                      # (fm) nucleus R0 for the 2pF-distribution of the target
-nuclear_dA 0.5498                       # (fm) nucleus d for the 2pF-distribution of the projectile
-nuclear_dB 0.5498                       # (fm) nucleus d for the 2pF-distribution of the target
+A 197                                   # Mass number of the projectile nucleus
+B 197                                   # Mass number of the target nucleus
+ZA 79                                   # Atomic number of the projectile nucleus
+ZB 79                                   # Atomic number of the target nucleus
+nuclear_RA 6.386                      # (fm) nucleus R0 for the 2pF-distribution of the projectile
+nuclear_RB 6.386                      # (fm) nucleus R0 for the 2pF-distribution of the target
+nuclear_dA 0.53527                       # (fm) nucleus d for the 2pF-distribution of the projectile
+nuclear_dB 0.53527                       # (fm) nucleus d for the 2pF-distribution of the target
 nuclear_beta2A 0.0                      # beta2 parameter of the projectile nucleus
 nuclear_beta2B 0.0                      # beta2 parameter of the target nucleus
 nuclear_beta3A 0.0                      # beta3 parameter of the projectile nucleus
@@ -51,7 +51,7 @@ use_snpdfs true                         # If the used nPDF should be spatially d
 # OUTPUT FLAGS     
 save_endstate_jets true                 # If all the jets should be saved in binary (see jet_reader.cpp)
 # FILTERING FLAGS      
-end_state_filtering false                # false=no any filtering in the end state
+end_state_filtering true                # false=no any filtering in the end state
 is_saturation true                      # If the EKRT saturation should be used
 is_mom_cons true                        # If the momentum conservation should be forced
 is_val_cons true                        # If the valence quark number conservation should be forced
