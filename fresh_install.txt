@@ -24,8 +24,8 @@ export PATH=$PATH:$HOME/lhapdf/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lhapdf/lib
 export PYTHONPATH=$PYTHONPATH:$HOME/lhapdf/site-packages
 cd $HOME/lhapdf/share/LHAPDF
-sudo wget https://lhapdfsets.web.cern.ch/lhapdfsets/current/CT14lo.tar.gz
-sudo tar -xf CT14lo.tar.gz
+sudo wget https://lhapdfsets.web.cern.ch/lhapdfsets/current/CT14nlo.tar.gz
+sudo tar -xf CT14nlo.tar.gz
 cd $HOME
 
 # Get the latest version of the code and do a test run

@@ -38,7 +38,7 @@ rad_max 30.0                            # (fm) nucleons' maximum distance from t
 correct_overlap_bias true               # If there will be a minimum distance between the nucleons in a nucleus
 nn_min_dist 0.4                         # (fm) minimum distance between the nucleons in a nucleus
 shift_cms true                          # If the nucleus' cms should be corrected after sampling the nucleons
-hotspots false                          # If the nucleon substructure model is used
+hotspots true                          # If the nucleon substructure model is used
 n_hotspots 3                            # How many hotspots in each nucleon
 hotspot_width 0.0                       # The gaussian width of the hotspots' thickness function (if 0, use 20% of the nucleon width)
 # GENERAL FLAGS    

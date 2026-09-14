@@ -154,16 +154,8 @@ public:
         std::shared_ptr<pdf_builder> p_pdf,
         pqcd::sigma_jet_params params) noexcept -> std::tuple<double, double>
     {
-        int i = 0;
-        auto max_00 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.0, 0.0);
-        auto max_01 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.0, 0.44);
         auto max_11 = find_max_dsigma(kt, sqrt_s, p_pdf, params, 0.44, 0.44);
-        //std::cout << kt << ", sigmas: " << std::get<0>(max_00) << "\t" << std::get<0>(max_01) << "\t" << std::get<0>(max_11) << std::endl;
-        auto res = max_00;
-        if (std::get<0>(res)+fabs(std::get<1>(res)) < std::get<0>(max_01)+fabs(std::get<1>(max_01))){res = max_01; i = 1;}
-        if (std::get<0>(res)+fabs(std::get<1>(res)) < std::get<0>(max_11)+fabs(std::get<1>(max_11))){res = max_11; i = 2;}
-        //std::cout << "max at taa,tbb: " << i << std::endl;
-        return res;
+        return max_11;
     }
 
     static auto find_env_kts(
