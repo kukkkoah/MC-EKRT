@@ -47,6 +47,26 @@
 #include "Tpp_builder.hpp"
 #include "typedefs.hpp"
 
+class extr : public LHAPDF::Extrapolator {
+  public:
+  double extrapolateXQ2(int id, double x, double Q2) const override {
+    if (Q2_min < 0.0 || Q2_max < 0.0) {
+        const double Q_min = pdf().info().get_entry_as<double>("QMin");
+        const double Q_max = pdf().info().get_entry_as<double>("QMax");
+
+        Q2_min = Q_min * Q_min;
+        Q2_max = Q_max * Q_max;
+    }
+
+    const double clamped_Q2 = std::clamp(Q2, Q2_min, Q2_max);
+    return pdf().interpolator().interpolateXQ2(id, x, clamped_Q2);
+  }
+
+  private:
+  mutable double Q2_min = -1.0;
+  mutable double Q2_max = -1.0;
+};
+
 class pdf_builder
 {
 public:
@@ -90,6 +110,14 @@ public:
     {
         this->p_pdf = std::make_shared<LHAPDF::GridPDF>(p_pdf_name, p_pdf_setnumber);
         // this->n_pdf = std::make_shared<LHAPDF::GridPDF>(n_pdf_name, n_pdf_setnumber);
+
+        LHAPDF::Extrapolator *ex = new extr();
+        bool freeze = false;
+        if (freeze){
+            this->p_pdf->setExtrapolator(ex);
+        }
+        p_pdf_Q2_min = this->p_pdf->q2Min();
+        p_pdf_Q2_max = this->p_pdf->q2Max();
 
         if (this->npdfs_spatial && this->snPDFs_linear)
         {
@@ -428,8 +456,12 @@ public:
         return (valence / parton_pdf) > rand;
     }
 
-    auto alphasQ2(const double &q2) const -> const double { return this->p_pdf->alphasQ2(q2); };
-    auto alphasQ(const double &q) const -> const double { return this->p_pdf->alphasQ(q); };
+    auto alphasQ2(const double &q2) const -> const double {
+        bool freeze = false;
+        const double q2_input = std::clamp(q2, p_pdf_Q2_min, p_pdf_Q2_max);
+        return this->p_pdf->alphasQ2((freeze) ? q2_input : q2); 
+    };
+    auto alphasQ(const double &q) const -> const double { return alphasQ2(q*q); };
     auto num_flavors() const -> const uint_fast8_t { return static_cast<uint_fast8_t>(std::stoi(this->p_pdf->info().get_entry("NumFlavors"))); };
     auto set_index() const -> const std::string { return this->p_pdf->info().get_entry("SetIndex"); };
 
@@ -452,6 +484,10 @@ private:
     std::function<double(const double &, const double &)> rA_spatial{};
     std::function<double(const double &, const double &)> rB_spatial{};
     linear_interpolator c_A_func;
+
+    double p_pdf_Q2_min{};
+    double p_pdf_Q2_max{};
+
 };
 
 #endif // PDF_HPP
