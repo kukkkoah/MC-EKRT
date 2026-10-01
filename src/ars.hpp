@@ -21,6 +21,7 @@
 #include <functional>
 #include <random>
 #include <vector>
+#include <algorithm>
 
 #include "typedefs.hpp"
 

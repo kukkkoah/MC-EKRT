@@ -20,6 +20,7 @@
 #include <iostream>
 #include <sstream>
 #include <tuple>
+#include <algorithm>
 
 typedef int_fast16_t particle_id;
 
